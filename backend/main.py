@@ -38,9 +38,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting PCB Analyzer API...")
     ensure_upload_dir()
     
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created/verified")
+    # Create database tables (optional - may fail if no DB configured)
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.warning(f"Could not connect to database (using Supabase API instead): {e}")
     
     yield
     
