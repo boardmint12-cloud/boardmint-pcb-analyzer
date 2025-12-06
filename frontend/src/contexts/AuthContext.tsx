@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase, User, Organization } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 
@@ -20,9 +20,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use refs to prevent infinite loops (refs persist across renders without causing re-renders)
+  const fetchingRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
 
   // Fetch user profile and organization data
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = async (userId: string, force: boolean = false) => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current) {
+      console.log('⏳ Already fetching user data, skipping...');
+      return;
+    }
+    
+    if (!force && lastFetchedUserIdRef.current === userId) {
+      console.log('✓ User data already loaded for this user');
+      return;
+    }
+
+    fetchingRef.current = true;
+    
     try {
       console.log('🔍 Fetching user data for ID:', userId);
       
@@ -32,8 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .eq('id', userId)
         .single();
-
-      console.log('📊 User data response:', { userData, userError });
 
       if (userError) {
         console.error('❌ Error fetching user:', userError);
@@ -51,8 +67,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userData.organization_id)
         .single();
 
-      console.log('🏢 Organization data response:', { orgData, orgError });
-
       if (orgError) {
         console.error('❌ Error fetching organization:', orgError);
         throw orgError;
@@ -63,18 +77,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('✅ Successfully loaded user and organization');
+      lastFetchedUserIdRef.current = userId;
       setUser(userData);
       setOrganization(orgData);
     } catch (error) {
       console.error('❌ Error in fetchUserData:', error);
+      lastFetchedUserIdRef.current = null;
       setUser(null);
       setOrganization(null);
-      throw error; // Re-throw so signIn knows there was an error
+      throw error;
+    } finally {
+      fetchingRef.current = false;
     }
   };
 
-  // Initialize auth state
+  // Initialize auth state - runs only once
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
@@ -91,23 +112,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('🔐 Auth state changed:', _event);
-      setSession(session);
-      if (session?.user) {
-        try {
-          await fetchUserData(session.user.id);
-        } catch (error) {
-          console.error('Failed to load user data on auth change:', error);
-        }
-      } else {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state changed:', event);
+      
+      // Only process sign out
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
         setUser(null);
         setOrganization(null);
+        lastFetchedUserIdRef.current = null;
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      
+      // For sign in, only fetch if we don't have the user yet
+      if (event === 'SIGNED_IN' && session?.user) {
+        setSession(session);
+        if (lastFetchedUserIdRef.current !== session.user.id) {
+          try {
+            await fetchUserData(session.user.id);
+          } catch (error) {
+            console.error('Failed to load user data on auth change:', error);
+          }
+        }
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (
@@ -129,9 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) throw error;
 
-    // Fetch user data after signup
+    // Fetch user data after signup (force refresh)
     if (data.user) {
-      await fetchUserData(data.user.id);
+      await fetchUserData(data.user.id, true);
     }
   };
 
@@ -143,9 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) throw error;
 
-    // Fetch user data after login
+    // Fetch user data after login (force refresh)
     if (data.user) {
-      await fetchUserData(data.user.id);
+      await fetchUserData(data.user.id, true);
     }
   };
 
@@ -155,11 +189,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setOrganization(null);
     setSession(null);
+    lastFetchedUserIdRef.current = null;
   };
 
   const refreshUser = async () => {
     if (session?.user) {
-      await fetchUserData(session.user.id);
+      await fetchUserData(session.user.id, true); // Force refresh
     }
   };
 

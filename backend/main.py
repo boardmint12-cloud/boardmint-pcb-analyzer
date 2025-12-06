@@ -94,15 +94,22 @@ async def health_check():
 async def upload_project(
     file: UploadFile = File(...),
     project_name: str = None,
-    eda_tool: str = "kicad"
+    eda_tool: str = "auto"
 ):
     """
-    Upload a PCB project ZIP file
+    Upload a PCB project (ZIP archive or single file)
+    
+    Supported formats:
+    - ZIP archives containing project files
+    - Single PCB files: .kicad_pcb, .brd, .PcbDoc, .dsn
+    - Gerber files: .gbr, .gtl, .gbl, etc.
+    - Manufacturing: IPC-2581 .xml, drill files
+    - Assembly: BOM (.csv, .xlsx), Pick-and-place (.pos, .csv)
     
     Args:
-        file: ZIP file containing PCB project
+        file: ZIP or single PCB/Gerber file
         project_name: Optional project name (defaults to filename)
-        eda_tool: EDA tool type (kicad, altium, easyleda, gerber)
+        eda_tool: "auto" for auto-detection, or specific tool
     
     Returns:
         Project details with ID
@@ -175,66 +182,26 @@ async def start_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/results/{job_id}")
-async def get_analysis_results(job_id: str):
-    """
-    Get analysis results for a job
-    
-    Args:
-        job_id: Analysis job UUID
-    
-    Returns:
-        Analysis results with issues
-    """
-    try:
-        analysis_service = AnalysisService()
-        results = await analysis_service.get_results(job_id)
-        
-        if not results:
-            raise HTTPException(status_code=404, detail="Job not found")
-        
-        return results
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get results: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+# NOTE: Legacy endpoint disabled - using Supabase-backed route in routes/analyses.py
+# @app.get("/api/results/{job_id}")
+# async def get_analysis_results(job_id: str):
+#     """Get analysis results for a job (LEGACY - uses SQLite)"""
+#     try:
+#         analysis_service = AnalysisService()
+#         results = await analysis_service.get_results(job_id)
+#         if not results:
+#             raise HTTPException(status_code=404, detail="Job not found")
+#         return results
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Failed to get results: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/projects")
-async def list_projects(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    """
-    List all projects
-    
-    Args:
-        skip: Number of records to skip
-        limit: Maximum records to return
-        db: Database session (injected)
-    
-    Returns:
-        List of projects
-    """
-    try:
-        projects = db.query(Project).offset(skip).limit(limit).all()
-        
-        return {
-            "success": True,
-            "projects": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "eda_tool": p.eda_tool,
-                    "status": p.status,
-                    "created_at": p.created_at.isoformat()
-                }
-                for p in projects
-            ]
-        }
-    
-    except Exception as e:
-        logger.error(f"Failed to list projects: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+# Legacy endpoint removed - use multi-tenant routes/projects.py instead
+# @app.get("/api/projects")
+# async def list_projects(...)
 
 
 @app.get("/api/export/{job_id}/pdf")

@@ -1,5 +1,11 @@
 """
 Upload service - handles file uploads and storage
+
+Supports:
+- ZIP archives containing project files
+- Single PCB files (.kicad_pcb, .brd, .PcbDoc, etc.)
+- Single Gerber files
+- BOM/PnP files
 """
 import os
 import uuid
@@ -7,7 +13,7 @@ import zipfile
 import logging
 import shutil
 import json
-from typing import Optional
+from typing import Optional, List, Tuple
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
@@ -16,40 +22,73 @@ from models.project import Project
 from config import get_settings, ensure_upload_dir
 from services.file_loader import FileLoader
 from services.cad_detector import CADToolDetector
+from parsers.format_detector import FormatDetector, FileFormat, EDAToolFamily
 
 logger = logging.getLogger(__name__)
 
 
+# Supported single file extensions
+SUPPORTED_SINGLE_FILE_EXTENSIONS = {
+    # PCB Native
+    '.kicad_pcb', '.kicad_sch', '.kicad_pro',
+    '.brd', '.sch',  # Eagle
+    '.pcbdoc', '.schdoc', '.prjpcb',  # Altium
+    '.dsn', '.opj',  # OrCAD
+    # Manufacturing
+    '.gbr', '.ger', '.gtl', '.gbl', '.gts', '.gbs', '.gto', '.gbo', '.gko',
+    '.drl', '.xln', '.exc',
+    '.xml',  # IPC-2581
+    # Assembly
+    '.csv', '.xlsx', '.xls', '.pos', '.xy', '.mnt',
+    # MCAD
+    '.step', '.stp', '.emn', '.emp',
+}
+
+
 class UploadService:
-    """Handle PCB project uploads"""
+    """Handle PCB project uploads - ZIP or single files"""
     
     def __init__(self):
         self.settings = get_settings()
         self.upload_dir = ensure_upload_dir()
         self.file_loader = FileLoader()
         self.cad_detector = CADToolDetector()
+        self.format_detector = FormatDetector()
+    
+    def _is_supported_single_file(self, filename: str) -> bool:
+        """Check if file extension is supported for single-file upload"""
+        ext = Path(filename).suffix.lower()
+        return ext in SUPPORTED_SINGLE_FILE_EXTENSIONS
     
     async def upload_project(
         self,
         file: UploadFile,
         project_name: Optional[str] = None,
-        eda_tool: str = "kicad",
+        eda_tool: str = "auto",
         db: Session = None
     ) -> Project:
         """
-        Handle project ZIP upload
+        Handle project upload (ZIP or single file)
         
         Args:
-            file: Uploaded ZIP file
+            file: Uploaded file (ZIP or single PCB file)
             project_name: Optional project name
-            eda_tool: EDA tool type (kicad, altium, easyleda, gerber)
+            eda_tool: EDA tool type or "auto" for detection
             
         Returns:
             Project object
         """
-        # Validate file
-        if not file.filename.endswith('.zip'):
-            raise HTTPException(status_code=400, detail="Only ZIP files are supported")
+        filename = file.filename or "unknown"
+        is_zip = filename.lower().endswith('.zip')
+        is_single = self._is_supported_single_file(filename)
+        
+        # Validate file type
+        if not is_zip and not is_single:
+            supported = ", ".join(sorted(SUPPORTED_SINGLE_FILE_EXTENSIONS)[:10]) + "..."
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type. Upload a ZIP archive or single PCB file ({supported})"
+            )
         
         # Generate project ID
         project_id = str(uuid.uuid4())
@@ -59,50 +98,65 @@ class UploadService:
         project_dir.mkdir(parents=True, exist_ok=True)
         
         # Stream file to disk (never load full file into memory)
-        zip_path = project_dir / file.filename
+        uploaded_path = project_dir / filename
         total_size = 0
         chunk_size = 1024 * 1024  # 1MB chunks
         
         try:
-            with open(zip_path, 'wb') as f:
+            with open(uploaded_path, 'wb') as f:
                 while chunk := await file.read(chunk_size):
-                    # Check size limit as we stream
                     total_size += len(chunk)
-                    if total_size > self.settings.max_upload_size:
-                        # Clean up and raise error
-                        f.close()
-                        zip_path.unlink()
-                        shutil.rmtree(project_dir)
-                        raise HTTPException(
-                            status_code=413,
-                            detail=f"File too large. Max size: {self.settings.max_upload_size / 1024 / 1024}MB"
-                        )
                     f.write(chunk)
             
-            logger.info(f"✅ Streamed {total_size / 1024 / 1024:.2f}MB to {zip_path}")
+            logger.info(f"✅ Streamed {total_size / 1024 / 1024:.2f}MB to {uploaded_path}")
             
-        except HTTPException:
-            # Re-raise HTTP exceptions
-            raise
         except Exception as e:
             # Clean up on error
-            if zip_path.exists():
-                zip_path.unlink()
+            if uploaded_path.exists():
+                uploaded_path.unlink()
             if project_dir.exists():
                 shutil.rmtree(project_dir)
             logger.error(f"Upload stream failed: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Upload failed")
         
-        # Extract and organize ZIP with FileLoader
+        # Handle extraction based on file type
         extracted_path = project_dir / "extracted"
-        try:
-            # Use FileLoader for smart extraction and organization
-            organized_files = self.file_loader.extract_and_flatten(zip_path, extracted_path)
-            logger.info(f"Extracted and organized ZIP: {[(k, len(v)) for k, v in organized_files.items()]}")
-        except Exception as e:
-            logger.error(f"Failed to extract ZIP: {e}", exc_info=True)
-            shutil.rmtree(project_dir)
-            raise HTTPException(status_code=400, detail="Invalid ZIP file")
+        extracted_path.mkdir(parents=True, exist_ok=True)
+        
+        warnings = []
+        
+        if is_zip:
+            # Extract ZIP archive
+            try:
+                organized_files = self.file_loader.extract_and_flatten(uploaded_path, extracted_path)
+                logger.info(f"Extracted ZIP: {[(k, len(v)) for k, v in organized_files.items()]}")
+            except Exception as e:
+                logger.error(f"Failed to extract ZIP: {e}", exc_info=True)
+                shutil.rmtree(project_dir)
+                raise HTTPException(status_code=400, detail="Invalid ZIP file")
+        else:
+            # Single file - copy to extracted folder
+            dest_path = extracted_path / filename
+            shutil.copy2(uploaded_path, dest_path)
+            
+            # Detect format and generate warning if incomplete
+            detected = self.format_detector.detect_file(dest_path)
+            
+            if detected.format in (FileFormat.GERBER, FileFormat.GERBER_X2):
+                warnings.append("⚠️ Single Gerber file uploaded. For complete analysis, upload full Gerber set in ZIP.")
+            elif detected.format == FileFormat.EXCELLON:
+                warnings.append("⚠️ Drill file only. For complete analysis, upload with Gerber files.")
+            elif detected.format in (FileFormat.BOM_CSV, FileFormat.BOM_XLSX):
+                warnings.append("ℹ️ BOM file uploaded. For DRC analysis, also upload PCB layout file.")
+            elif detected.format == FileFormat.PICK_AND_PLACE:
+                warnings.append("ℹ️ Pick-and-place file uploaded. For full analysis, also upload PCB layout.")
+            
+            # Auto-detect EDA tool from format
+            if eda_tool == "auto" and detected.eda_tool:
+                eda_tool = detected.eda_tool.value
+            
+            organized_files = {'single_file': [str(dest_path)]}
+            logger.info(f"Single file upload: {filename} -> {detected.format.value}")
         
         # Detect CAD tool
         try:
@@ -131,12 +185,21 @@ class UploadService:
             db = SessionLocal()
             should_close = True
         
+        # Handle default eda_tool
+        if eda_tool == "auto":
+            eda_tool = "unknown"
+        
         try:
+            # Clean up project name
+            clean_name = project_name or filename
+            for ext in ['.zip', '.kicad_pcb', '.brd', '.PcbDoc', '.pcbdoc']:
+                clean_name = clean_name.replace(ext, '')
+            
             project = Project(
                 id=project_id,
-                name=project_name or file.filename.replace('.zip', ''),
+                name=clean_name,
                 eda_tool=eda_tool,
-                zip_path=str(zip_path),
+                zip_path=str(uploaded_path),
                 extracted_path=str(extracted_path),
                 status="uploaded"
             )

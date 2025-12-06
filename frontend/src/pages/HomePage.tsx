@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Upload, Shield, Radio, FileText, Zap, UserPlus, CheckCircle2, TrendingUp, Clock, DollarSign, MessageSquare } from 'lucide-react'
+import { Upload, Shield, Radio, FileText, Zap, UserPlus, CheckCircle2, TrendingUp, Clock, DollarSign, MessageSquare, Cpu, BookOpen, Layers, ThermometerSun } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import Navbar from '../components/Navbar'
@@ -77,11 +77,11 @@ export default function HomePage() {
             )}
           </h1>
         <p className="text-3xl text-gray-300 mb-8 font-semibold">
-          The Layout Copilot for Hardware Teams
+          AI-Powered PCB Analysis for Hardware Teams
         </p>
         <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
-          Catch critical design issues before manufacturing. From mains safety to signal integrity,
-          get instant domain-specific analysis for building automation, IoT, and industrial designs.
+          Catch critical design issues before manufacturing. RAG-powered AI analysis with industry-standard 
+          rule engines (IPC-2221A, IEC 62368-1). From mains safety to high-speed signal integrity.
         </p>
         
         <div className="flex justify-center gap-6 flex-wrap">
@@ -172,10 +172,10 @@ export default function HomePage() {
       {/* Solution Section */}
       <div className="py-16 px-4">
         <div className="max-w-5xl mx-auto text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-100 mb-4">Built for Engineering Teams</h2>
+          <h2 className="text-4xl font-bold text-gray-100 mb-4">Industry-Standard Rule Engines + AI</h2>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            From solo designers to small teams - get instant AI-powered analysis without enterprise complexity.
-            Multi-tenant collaboration meets domain expertise.
+            Comprehensive analysis powered by IPC-2221A, IEC 62368-1, IPC-2152 standards combined with 
+            RAG-enhanced GPT-4 for domain-specific insights.
           </p>
         </div>
 
@@ -183,13 +183,28 @@ export default function HomePage() {
           <div className="card p-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-red-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-red-400" />
+                <Shield className="h-6 w-6 text-red-400" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-100 mb-3">High-Voltage & Safety</h3>
+                <h3 className="text-xl font-semibold text-gray-100 mb-3">High-Voltage Safety (IEC 62368-1)</h3>
                 <p className="text-gray-400 leading-relaxed">
-                  Automatic HV creepage and clearance checks. Isolation verification between mains and low voltage. 
-                  IEC 60950-1 and UL 60950-1 compliant safety analysis for building automation.
+                  Automatic clearance and creepage checks per IEC 62368-1 tables. Pollution degree and 
+                  material group aware. Mains isolation verification with optocoupler/transformer detection.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <BookOpen className="h-6 w-6 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-100 mb-3">RAG-Powered AI Analysis</h3>
+                <p className="text-gray-400 leading-relaxed">
+                  GPT-4 enhanced with retrieval from IPC standards, TI/NXP app notes, and design guides.
+                  Evidence-based findings with standard references, not generic advice.
                 </p>
               </div>
             </div>
@@ -198,28 +213,13 @@ export default function HomePage() {
           <div className="card p-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-blue-400" />
+                <Layers className="h-6 w-6 text-blue-400" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-100 mb-3">Team Collaboration</h3>
+                <h3 className="text-xl font-semibold text-gray-100 mb-3">High-Speed Interfaces</h3>
                 <p className="text-gray-400 leading-relaxed">
-                  Multi-tenant workspace with role-based access. Share projects within your organization.
-                  Track analysis history and maintain design consistency across your team.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-8">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-green-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-100 mb-3">Signal Integrity</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  RS-485/CAN termination validation, differential pair checks, ESD protection verification.
-                  Length matching and controlled impedance analysis for high-speed signals.
+                  USB/PCIe/HDMI differential impedance checks, length matching validation, 5W spacing rule.
+                  Reference plane continuity and via discontinuity analysis.
                 </p>
               </div>
             </div>
@@ -228,13 +228,13 @@ export default function HomePage() {
           <div className="card p-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-orange-400" />
+                <ThermometerSun className="h-6 w-6 text-orange-400" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-100 mb-3">DFM & Assembly</h3>
+                <h3 className="text-xl font-semibold text-gray-100 mb-3">Thermal & Current Analysis</h3>
                 <p className="text-gray-400 leading-relaxed">
-                  Component placement validation, test point accessibility, polarity markings, edge clearances.
-                  Thermal management and manufacturability checks.
+                  IPC-2152 trace current capacity, via thermal analysis, component power dissipation.
+                  Thermal via recommendations and exposed pad heat spreading checks.
                 </p>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function HomePage() {
       {/* Technical Features */}
       <div className="py-16 px-4 border-t border-slate-700">
         <h2 className="text-3xl font-bold text-center text-gray-100 mb-12">
-          Specialized for Building Automation & Industrial IoT
+          Complete Rule Engine Coverage
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
         <div className="card text-center">
@@ -255,10 +255,10 @@ export default function HomePage() {
             </div>
           </div>
           <h3 className="text-lg font-semibold text-gray-100 mb-2">
-            Mains & Safety
+            Mains Safety
           </h3>
           <p className="text-sm text-gray-400">
-            Clearances, creepage, isolation between 230VAC and low voltage
+            IEC 62368-1 clearance/creepage tables, pollution degrees, isolation barriers
           </p>
         </div>
 
@@ -272,7 +272,7 @@ export default function HomePage() {
             Bus Interfaces
           </h3>
           <p className="text-sm text-gray-400">
-            RS-485/CAN termination, ESD protection, failsafe biasing
+            I2C/SPI/RS-485/CAN per TI app notes, pull-up calculations, termination
           </p>
         </div>
 
@@ -286,7 +286,7 @@ export default function HomePage() {
             Power & SMPS
           </h3>
           <p className="text-sm text-gray-400">
-            Current paths, relay sizing, regulator layout, thermal analysis
+            Hot loop analysis, input/output capacitor placement, feedback routing
           </p>
         </div>
 
@@ -297,10 +297,10 @@ export default function HomePage() {
             </div>
           </div>
           <h3 className="text-lg font-semibold text-gray-100 mb-2">
-            BOM & Assembly
+            BOM Validation
           </h3>
           <p className="text-sm text-gray-400">
-            Missing MPNs, test points, polarity marking, edge clearances
+            E-series values, MLCC derating, voltage margins, standard packages
           </p>
         </div>
         </div>
@@ -309,51 +309,95 @@ export default function HomePage() {
       {/* Supported Formats */}
       <div className="py-16 px-4 border-t border-slate-700">
         <h2 className="text-3xl font-bold text-center text-gray-100 mb-4">
-          Works With Your Workflow
+          Universal Format Support
         </h2>
         <p className="text-center text-gray-400 mb-8 max-w-2xl mx-auto">
-          Upload project files from your EDA tool - we'll handle the rest
+          Upload ZIP archives or single files - our universal parser auto-detects the format
         </p>
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           <div className="card">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3">
-              KiCad (Recommended)
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              PCB Native Formats
             </h3>
-            <p className="text-gray-300 mb-3">
-              Upload .zip containing:
-            </p>
-            <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-              <li>.kicad_pcb layout file</li>
-              <li>.kicad_sch schematic files</li>
-              <li>BOM CSV (optional)</li>
-              <li>Position/placement file (optional)</li>
+            <ul className="text-sm text-gray-300 space-y-1.5">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                KiCad (.kicad_pcb, .kicad_sch)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Eagle (.brd, .sch)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Altium (.PcbDoc, .SchDoc)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Cadence (.BRD, .DSN)
+              </li>
             </ul>
-            <p className="text-xs text-gray-400 mt-3">
-              Full schematic + layout analysis with netlist verification
-            </p>
           </div>
 
           <div className="card">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3">
-              Gerber / ODB++ / Generic
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Manufacturing Formats
             </h3>
-            <p className="text-gray-300 mb-3">
-              Upload .zip containing:
-            </p>
-            <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-              <li>Gerber/ODB++ files</li>
-              <li>Drill files (.drl, .exc)</li>
-              <li>BOM (CSV/Excel)</li>
-              <li>Centroid/pick-and-place (optional)</li>
+            <ul className="text-sm text-gray-300 space-y-1.5">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Gerber RS-274X / X2
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Excellon Drill (.drl)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                ODB++ (directory)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                IPC-2581 (.xml)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                IPC-D-356 Netlist
+              </li>
             </ul>
-            <p className="text-xs text-gray-400 mt-3">
-              DFM, assembly optimization, and manufacturability checks
-            </p>
+          </div>
+
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              Assembly Data
+            </h3>
+            <ul className="text-sm text-gray-300 space-y-1.5">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                BOM (CSV, Excel)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Pick-and-Place (.pos, .csv)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Centroid files (.xy)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                STEP 3D models
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                IDF exchange
+              </li>
+            </ul>
           </div>
         </div>
-        <p className="text-center text-sm text-gray-500 mt-8">
-          More formats coming soon: Altium, EAGLE, OrCAD
-        </p>
       </div>
 
       {/* CTA */}

@@ -20,14 +20,25 @@ export default function UploadZone({ onFileSelect, isUploading }: UploadZoneProp
     setIsDragging(false)
   }, [])
 
+  const SUPPORTED_EXTENSIONS = [
+    '.zip', '.kicad_pcb', '.kicad_sch', '.brd', '.sch', 
+    '.pcbdoc', '.schdoc', '.dsn', '.gbr', '.ger', '.gtl', 
+    '.gbl', '.gts', '.gbs', '.gto', '.gbo', '.gko', '.drl',
+    '.xml', '.csv', '.xlsx', '.pos', '.xy'
+  ]
+
   const validateFile = (file: File): boolean => {
-    if (!file.name.endsWith('.zip')) {
-      setError('Please upload a ZIP file')
+    const fileName = file.name.toLowerCase()
+    const isSupported = SUPPORTED_EXTENSIONS.some(ext => fileName.endsWith(ext))
+    
+    if (!isSupported) {
+      setError('Unsupported file type. Upload ZIP, KiCad, Eagle, Altium, Gerber, or assembly files.')
       return false
     }
     
-    if (file.size > 100 * 1024 * 1024) {
-      setError('File size must be less than 100MB')
+    // 500MB limit for large projects
+    if (file.size > 500 * 1024 * 1024) {
+      setError('File size must be less than 500MB')
       return false
     }
     
@@ -76,7 +87,7 @@ export default function UploadZone({ onFileSelect, isUploading }: UploadZoneProp
       >
         <input
           type="file"
-          accept=".zip"
+          accept=".zip,.kicad_pcb,.kicad_sch,.brd,.sch,.pcbdoc,.schdoc,.dsn,.gbr,.ger,.gtl,.gbl,.gts,.gbs,.drl,.xml,.csv,.xlsx,.pos,.xy"
           onChange={handleFileInput}
           disabled={isUploading}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -100,15 +111,15 @@ export default function UploadZone({ onFileSelect, isUploading }: UploadZoneProp
               
               <div>
                 <p className="text-lg font-medium text-gray-100">
-                  Drag & drop your PCB project ZIP
+                  Drag & drop your PCB files
                 </p>
                 <p className="text-sm text-gray-300 mt-1">
-                  or click to browse
+                  ZIP archives or single files • Auto-detected
                 </p>
               </div>
               
               <p className="text-xs text-gray-500">
-                Max file size: 100MB • Supported: KiCad, Gerber, Altium, EasyEDA
+                KiCad • Eagle • Altium • Cadence • Gerber • ODB++ • IPC-2581 • BOM/PnP
               </p>
             </>
           )}

@@ -8,6 +8,7 @@ import QuotePage from './pages/QuotePage'
 import UploadPage from './pages/UploadPage'
 import DashboardPage from './pages/DashboardPage'
 import ProjectsPage from './pages/ProjectsPage'
+import ProjectDetailPage from './pages/ProjectDetailPage'
 import Navbar from './components/Navbar'
 
 function App() {
@@ -61,6 +62,19 @@ function App() {
                     <Navbar />
                     <main className="container mx-auto px-4 py-8">
                       <ProjectsPage />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/project/:projectId"
+              element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="container mx-auto px-4 py-8">
+                      <ProjectDetailPage />
                     </main>
                   </>
                 </ProtectedRoute>

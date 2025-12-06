@@ -1,47 +1,75 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import UploadZone from '@/components/UploadZone'
-import { uploadProject, startAnalysis } from '@/lib/api'
-import { CheckCircle, ArrowRight } from 'lucide-react'
+import { createProjectV2 } from '@/lib/api'
+import { CheckCircle, ArrowRight, Upload, FileText } from 'lucide-react'
 
 export default function UploadPage() {
   const navigate = useNavigate()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [projectName, setProjectName] = useState('')
-  const [edaTool, setEdaTool] = useState('kicad')
-  const [fabProfile, setFabProfile] = useState('cheap_cn_8mil')
+  const [projectDescription, setProjectDescription] = useState('')
+  const [projectComment, setProjectComment] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string>('')
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file)
     if (!projectName) {
-      setProjectName(file.name.replace('.zip', ''))
+      // Clean up filename for project name
+      let name = file.name
+      for (const ext of ['.zip', '.kicad_pcb', '.brd', '.PcbDoc', '.pcbdoc']) {
+        name = name.replace(ext, '')
+      }
+      setProjectName(name)
     }
     setError(null)
   }
 
-  const handleStartAnalysis = async () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       setError('Please select a file')
       return
     }
 
+    if (!projectName.trim()) {
+      setError('Please enter a project name')
+      return
+    }
+
     setIsUploading(true)
     setError(null)
+    setUploadProgress('Uploading file...')
 
     try {
-      // Upload project
-      const project = await uploadProject(selectedFile, projectName, edaTool)
+      // Create project (V2 - Supabase backed, includes file tree extraction)
+      setUploadProgress('Processing and extracting files...')
+      const project = await createProjectV2(
+        selectedFile, 
+        projectName.trim(),
+        projectDescription.trim() || undefined,
+        projectComment.trim() || undefined
+      )
       
-      // Start analysis
-      const job = await startAnalysis(project.id, fabProfile)
+      setUploadProgress('✓ Project created successfully!')
       
-      // Navigate to dashboard
-      navigate(`/dashboard/${job.id}`)
+      // Short delay to show success message, then navigate
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Navigate to project detail page (not directly to analysis)
+      navigate(`/project/${project.id}`)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Upload failed. Please try again.')
+      console.error('Upload failed:', err)
+      const errorDetail = err.response?.data?.detail || 'Upload failed. Please try again.'
+      // Provide helpful message for common errors
+      if (errorDetail === 'Invalid ZIP file') {
+        setError('Invalid ZIP file. Please ensure the file is a valid ZIP archive containing PCB files.')
+      } else {
+        setError(errorDetail)
+      }
       setIsUploading(false)
+      setUploadProgress('')
     }
   }
 
@@ -52,7 +80,7 @@ export default function UploadPage() {
           Upload PCB Project
         </h1>
         <p className="text-gray-300">
-          Upload your PCB project ZIP file and configure analysis settings
+          Upload ZIP archives or single files (.kicad_pcb, .brd, Gerber, etc.) - format auto-detected
         </p>
       </div>
 
@@ -76,48 +104,43 @@ export default function UploadPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                Project Name
+                Project Name <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-pcbGreen/50 focus:border-pcbGreen"
                 placeholder="My PCB Project"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                EDA Tool
+                Description <span className="text-gray-500">(optional)</span>
               </label>
-              <select
-                value={edaTool}
-                onChange={(e) => setEdaTool(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="kicad">KiCad (Recommended)</option>
-                <option value="gerber">Gerber / Generic</option>
-                <option value="altium">Altium Designer</option>
-                <option value="easyleda">EasyEDA</option>
-              </select>
+              <input
+                type="text"
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-pcbGreen/50 focus:border-pcbGreen"
+                placeholder="Brief description of this PCB project"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                Fabrication Profile
+                Notes <span className="text-gray-500">(optional)</span>
               </label>
-              <select
-                value={fabProfile}
-                onChange={(e) => setFabProfile(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="cheap_cn_8mil">Cheap CN fab (6/6 mil)</option>
-                <option value="local_fab_8mil">Local fab (8/8 mil)</option>
-                <option value="hdi_4mil">HDI capable (4/4 mil)</option>
-              </select>
+              <textarea
+                value={projectComment}
+                onChange={(e) => setProjectComment(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2 bg-gray-800 text-gray-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-pcbGreen/50 focus:border-pcbGreen resize-none"
+                placeholder="Any notes or comments about this project (revision info, special requirements, etc.)"
+              />
               <p className="text-xs text-gray-400 mt-1">
-                Choose based on your target fabrication house capabilities
+                You can add more detailed comments after viewing the file structure
               </p>
             </div>
           </div>
@@ -129,15 +152,43 @@ export default function UploadPage() {
             </div>
           )}
 
+          {/* Upload Progress */}
+          {uploadProgress && (
+            <div className="mt-4 p-3 bg-blue-900/40 border border-blue-700 rounded-lg text-blue-300 text-sm flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+              {uploadProgress}
+            </div>
+          )}
+
           {/* Submit Button */}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-3">
             <button
-              onClick={handleStartAnalysis}
-              disabled={isUploading}
+              onClick={() => {
+                setSelectedFile(null)
+                setProjectName('')
+                setProjectDescription('')
+                setProjectComment('')
+              }}
+              className="btn-secondary"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={isUploading || !projectName.trim()}
               className="btn-primary flex items-center space-x-2"
             >
-              <span>Start Analysis</span>
-              <ArrowRight className="h-5 w-5" />
+              {isUploading ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5" />
+                  <span>Upload Project</span>
+                </>
+              )}
             </button>
           </div>
         </div>

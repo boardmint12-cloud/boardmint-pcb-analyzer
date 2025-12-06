@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getAnalysisResults, downloadPDFReport, AnalysisResults } from '@/lib/api'
+import { getAnalysisResults, getAnalysisPdfUrl, AnalysisResults } from '@/lib/api'
 import RiskBadge from '@/components/RiskBadge'
 import CategoryCard from '@/components/CategoryCard'
 import IssueCard from '@/components/IssueCard'
-import { Loader2, Download, ArrowLeft, Layers, Ruler, Cpu, Zap, Sparkles, Lightbulb, CheckCircle2, Package } from 'lucide-react'
+import { Loader2, Download, ArrowLeft, Layers, Ruler, Cpu, Zap, Sparkles, Lightbulb, CheckCircle2, Package, Save, Check } from 'lucide-react'
 import { formatCategoryName } from '@/lib/utils'
 
 export default function DashboardPage() {
@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   useEffect(() => {
     if (!jobId) return
 
@@ -92,14 +93,50 @@ export default function DashboardPage() {
             Back to Projects
           </button>
           <h1 className="text-3xl font-bold text-gray-100">Analysis Results</h1>
+          {results?.project_id && (
+            <p className="text-gray-400 text-sm mt-1">
+              Analysis saved automatically • Project ID: {results.project_id.slice(0, 8)}...
+            </p>
+          )}
         </div>
-        <button
-          onClick={() => window.open(downloadPDFReport(jobId!), '_blank')}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Download className="h-5 w-5" />
-          <span>Download Report</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setSaved(true)
+              setTimeout(() => {
+                if (results?.project_id) {
+                  navigate(`/project/${results.project_id}`)
+                } else {
+                  navigate('/projects')
+                }
+              }, 800)
+            }}
+            disabled={saved}
+            className={`btn-secondary flex items-center space-x-2 ${saved ? 'bg-green-900/50 border-green-600' : ''}`}
+          >
+            {saved ? (
+              <Check className="h-5 w-5 text-green-400" />
+            ) : (
+              <Save className="h-5 w-5" />
+            )}
+            <span>{saved ? 'Saved! Redirecting...' : 'Save & View Project'}</span>
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const { download_url } = await getAnalysisPdfUrl(jobId!)
+                window.open(download_url, '_blank')
+              } catch (err) {
+                console.error('Failed to get PDF:', err)
+                alert('PDF not available. Analysis may still be processing.')
+              }
+            }}
+            className="btn-primary flex items-center space-x-2"
+          >
+            <Download className="h-5 w-5" />
+            <span>Download Report</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards Grid */}

@@ -1,5 +1,6 @@
 """
 Analysis service - runs PCB analysis pipeline with GPT-5.1 extraction
+Enhanced with DRCEngineV2 and UniversalParser
 """
 import logging
 from datetime import datetime
@@ -10,19 +11,24 @@ from sqlalchemy.orm import Session
 from models.project import Project
 from models.analysis_job import AnalysisJob
 from models.issue import Issue as IssueModel
-from parsers import KiCadParser, GerberParser
+from parsers import KiCadParser, GerberParser, UniversalParser
 from parsers.hybrid_parser import HybridParser
 from rules import (
     MainsSafetyRules,
     BusInterfaceRules,
     PowerSMPSRules,
+    BOMValidationRules,
+    HighSpeedInterfaceRules,
+    ThermalAnalysisRules,
     BOMSanityRules,
     AssemblyTestRules,
     Issue
 )
 from services.ai_service import AIAnalysisService
+from services.ai_service_v2 import AIAnalysisServiceV2
 from services.file_loader import FileLoader
 from services.gpt_extractor import GPTExtractor
+from services.drc_engine_v2 import DRCEngineV2
 from services.cache_service import get_cache
 
 logger = logging.getLogger(__name__)
@@ -691,11 +697,11 @@ Do NOT output any text outside the JSON. No commentary, no markdown."""
             return None
     
     def _run_rule_engines(self, pcb_data, fab_profile: str) -> List[Issue]:
-        """Run all rule engines"""
+        """Run all rule engines (V1 + V2)"""
         all_issues = []
         
-        # Instantiate rule engines
-        engines = [
+        # V1 engines (legacy)
+        v1_engines = [
             MainsSafetyRules(fab_profile),
             BusInterfaceRules(fab_profile),
             PowerSMPSRules(fab_profile),
@@ -703,19 +709,35 @@ Do NOT output any text outside the JSON. No commentary, no markdown."""
             AssemblyTestRules(fab_profile),
         ]
         
-        # Run each engine
-        for engine in engines:
+        # V2 engines (new standards-based)
+        # Note: These engines have different __init__ signatures
+        v2_engines = [
+            BOMValidationRules(),  # Uses default E24 series
+            HighSpeedInterfaceRules(fab_profile),
+            ThermalAnalysisRules(copper_oz=1.0),  # Default 1oz copper
+        ]
+        
+        # Run V1 engines
+        for engine in v1_engines:
             try:
                 engine_name = engine.__class__.__name__
                 logger.info(f"Running {engine_name}...")
-                
                 issues = engine.analyze(pcb_data)
                 all_issues.extend(issues)
-                
                 logger.info(f"{engine_name}: {len(issues)} issues found")
-                
             except Exception as e:
                 logger.error(f"Rule engine {engine.__class__.__name__} failed: {e}", exc_info=True)
+        
+        # Run V2 engines
+        for engine in v2_engines:
+            try:
+                engine_name = engine.__class__.__name__
+                logger.info(f"Running V2 {engine_name}...")
+                issues = engine.analyze(pcb_data)
+                all_issues.extend(issues)
+                logger.info(f"V2 {engine_name}: {len(issues)} issues found")
+            except Exception as e:
+                logger.error(f"V2 Rule engine {engine.__class__.__name__} failed: {e}", exc_info=True)
         
         return all_issues
     
@@ -734,7 +756,6 @@ Do NOT output any text outside the JSON. No commentary, no markdown."""
         """
         try:
             from services.parser_bridge import ParserBridge
-            from services.drc_engine import DRCEngine
             from rules import Issue, IssueSeverity
             
             # Convert to canonical model
@@ -749,9 +770,10 @@ Do NOT output any text outside the JSON. No commentary, no markdown."""
             }
             profile_id = profile_map.get(fab_profile, "2l_cheap_proto")
             
-            # Run DRC
-            drc_engine = DRCEngine(max_workers=8)  # Use 8 workers for background task
-            violations = drc_engine.run_checks(board, profile_id)
+            # Run DRCEngineV2 (uses all new rule engines)
+            drc_engine = DRCEngineV2()
+            drc_result = drc_engine.run_full_analysis(board, profile_id)
+            violations = drc_result.violations
             
             # Convert violations to old Issue format
             issues = []
