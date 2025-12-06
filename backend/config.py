@@ -4,7 +4,9 @@ Configuration management for PCB Analyzer backend
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
+from typing import List, Union
 
 
 class Settings(BaseSettings):
@@ -40,14 +42,15 @@ class Settings(BaseSettings):
     # Environment
     python_env: str = "development"
     
-    # CORS
-    cors_origins: list = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ]
+    # CORS - accepts comma-separated string or list
+    cors_origins: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,https://boardmint.io,https://www.boardmint.io"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS origins from comma-separated string"""
+        if isinstance(self.cors_origins, list):
+            return self.cors_origins
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
     
     # OpenAI
     openai_api_key: str = ""
